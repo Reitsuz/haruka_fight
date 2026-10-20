@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>遼 ファイトナイト</title>
+<style>
+:root{--cyan:#6ffaff;--pink:#ff5ea8;--yellow:#ffe56a}
+*{box-sizing:border-box} html,body{margin:0;width:100%;height:100%;background:#080d22;color:#fff;font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif;overflow:hidden;touch-action:manipulation}
+body{display:flex;align-items:center;justify-content:center}
+#game{position:relative;width:min(100vw,160vh);height:min(100vh,62.5vw);min-height:300px;aspect-ratio:16/10;background:#101c43;overflow:hidden;border:2px solid #5068c9;box-shadow:0 0 30px #233fae}
+canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
+#hud{position:absolute;inset:0 0 auto;display:flex;align-items:flex-start;gap:8px;padding:10px;pointer-events:none;text-shadow:2px 2px #111}
+.panel{width:32%;min-width:0}.panel.right{margin-left:auto;text-align:right}.name{font-weight:900;font-size:clamp(12px,2vw,22px);letter-spacing:.04em}
+.bar{height:clamp(10px,2vw,20px);border:2px solid white;background:#171b38;transform:skewX(-10deg);margin-top:3px}.fill{height:100%;background:linear-gradient(90deg,#63ff8b,#f5f76b);width:100%;transition:width .15s}
+#timer{position:absolute;top:9px;left:50%;transform:translateX(-50%);font-size:clamp(25px,4.5vw,48px);font-weight:1000;color:#fff;background:#111936;border:3px solid #bdeaff;padding:0 13px;clip-path:polygon(15% 0,85% 0,100% 50%,85% 100%,15% 100%,0 50%);z-index:2}
+#round{position:absolute;top:clamp(52px,8vw,77px);left:50%;transform:translateX(-50%);font-weight:900;font-size:clamp(10px,1.5vw,16px);white-space:nowrap}
+#message-box{position:absolute;left:50%;top:43%;transform:translate(-50%,-50%);display:none;z-index:15;text-align:center;white-space:nowrap}
+#message{font-size:clamp(28px,6vw,66px);font-weight:1000;color:#fff;text-shadow:4px 4px #e52c8b,-2px -2px #111;margin-bottom:12px}
+#next-btn{font-size:clamp(18px,3vw,28px);padding:12px 32px;border:0;border-radius:12px;background:linear-gradient(90deg,#ffe56a,#ff5ea8);color:#111;font-weight:1000;cursor:pointer;box-shadow:0 4px 15px rgba(255,94,168,0.5);touch-action:manipulation}
+#subtitle{position:absolute;bottom:90px;left:12px;background:#080d22cc;padding:7px 12px;border-left:4px solid var(--pink);font-size:clamp(10px,1.5vw,15px)}
+#controls{position:absolute;bottom:10px;left:10px;right:10px;display:flex;justify-content:space-between;align-items:end;gap:10px}
+.pad,.actions{display:flex;gap:8px}.control{border:2px solid #d5f8ff;background:#17265dcc;color:#fff;border-radius:13px;font-size:clamp(14px,2.2vw,23px);font-weight:900;min-width:clamp(42px,6vw,65px);height:clamp(42px,6vw,65px);box-shadow:0 4px 0 #050918;touch-action:none;user-select:none}.control:active,.control.active{background:#ff4c9d;transform:translateY(3px);box-shadow:0 1px 0 #050918}
+#start{position:absolute;inset:0;background:#070c1ddd;display:flex;align-items:center;justify-content:center;text-align:center;z-index:20;padding:20px}
+#start .card{max-width:560px;background:#111a39;border:2px solid #6ffaff;border-radius:18px;padding:24px;box-shadow:0 0 30px #2c50d7}
+h1{font-size:clamp(26px,5vw,48px);margin:0 0 8px;color:#fff;text-shadow:3px 3px #ec348f}p{line-height:1.6;margin:8px 0 16px;color:#d9e6ff}
+#go{font-size:20px;padding:12px 30px;border:0;border-radius:12px;background:linear-gradient(90deg,#ff4c9d,#766bff);color:white;font-weight:1000;cursor:pointer}
+@media(max-width:600px){#game{width:100vw;height:100dvh;aspect-ratio:auto;border:0}#subtitle{bottom:84px;max-width:55%}.control{min-width:45px;height:48px}.panel{width:37%}.panel.right{width:31%}#hud{padding:7px;gap:4px}}
+</style>
+</head>
+<body>
+<div id="game">
+<canvas id="c" width="960" height="600" aria-label="格闘ゲーム画面"></canvas>
+<div id="hud">
+ <div class="panel"><div class="name">遼 (マリコス) <span style="color:#ff80bc">PLAYER</span></div><div class="bar"><div id="hp1" class="fill"></div></div></div>
+ <div id="timer">99</div><div id="round">ROUND 1</div>
+ <div class="panel right"><div class="name" id="enemyName">ぐーば</div><div class="bar"><div id="hp2" class="fill"></div></div></div>
+</div>
+<div id="message-box">
+ <div id="message">K.O.!</div>
+ <button id="next-btn">次へ ▶</button>
+</div>
+<div id="subtitle">MOVE: ← → JUMP: ↑ PUNCH: Z{KICK: X</div>
+<div id="controls">
+ <div class="pad">
+  <button class="control" data-key="ArrowLeft">◀</button><button class="control" data-key="ArrowRight">▶</button><button class="control" data-key="ArrowUp">▲</button>
+ </div>
+ <div class="actions"><button class="control" data-key="z">パンチ</button><button class="control" data-key="x">キック</button></div>
+</div>
+<div id="start"><div class="card"><h1>遼<br>ファイトナイト</h1><p>反転アンチと化したファンとの決戦！<br>ぐーば → パキスラ → テオ<br>3人を倒して完全制覇を目指そう！<br><small>PC：矢印キーで移動・ジャンプ、Zでパンチ、Xでキック<br>スマホ：画面下のボタンで操作</small></p><button id="go">FIGHT！</button></div></div>
+</div>
+<script>
+(()=> {
+const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
+const W=960,H=600, floor=490;
+const keys={}; let running=false,over=false,frame=0,timer=99,tick=0,enemyIndex=0,waitingNext=false;
+const names=['ぐーば','パキスラ','テオ'];
+const colors=['#4d7cff','#10b981','#8b5cf6'];
+const player={x:190,y:floor,w:56,h:100,hp:100,max:100,face:1,vy:0,attack:0,attackType:'',cool:0,hitFlash:0,hasHit:false};
+let enemy;
+
+function newEnemy(){
+ enemy={x:700,y:floor,w:58,h:96,hp:100,max:100,face:-1,vy:0,attack:0,attackType:'',cool:10,hitFlash:0,hasHit:false};
+ document.getElementById('enemyName').textContent=names[Math.min(enemyIndex,2)];
+ updateHud();
+}
+
+function reset(){
+ Object.assign(player,{x:190,y:floor,hp:100,face:1,vy:0,attack:0,cool:0,hitFlash:0,hasHit:false});
+ enemyIndex=0;timer=99;tick=0;over=false;waitingNext=false;
+ document.getElementById('message-box').style.display='none';
+ newEnemy();
+}
+
+function rect(x,y,w,h,c){ctx.fillStyle=c;ctx.fillRect(Math.round(x),Math.round(y),w,h)}
+function text(t,x,y,size,c='#fff'){ctx.font=`900 ${size}px system-ui`;ctx.textAlign='center';ctx.lineWidth=4;ctx.strokeStyle='#10132c';ctx.strokeText(t,x,y);ctx.fillStyle=c;ctx.fillText(t,x,y)}
+
+function bg(){
+ ctx.fillStyle='#101943'; ctx.fillRect(0,0,W,H);
+ for(let i=0;i<8;i++){
+  rect(i*120+10,220-(i%3)*20,90,270,'#162352');
+  rect(i*120+20,240-(i%3)*20,15,180,'#1f3273');
+ }
+ rect(180,180,180,50,'#1e2d63');
+ ctx.strokeStyle='#ff58a7';ctx.lineWidth=3;ctx.strokeRect(180,180,180,50);
+ text('NIGHT CITY',270,213,20,'#ff8fca');
+ rect(0,490,W,110,'#11152b');
+ rect(0,490,W,4,'#63e7ff');
+}
+
+function fighter(p,isPlayer,label,color){
+ const x=p.x,y=p.y,dir=p.face; const flashing=p.hitFlash>0;
+ ctx.save();ctx.translate(x,y);ctx.scale(dir,1);
+ ctx.globalAlpha=.35;ctx.fillStyle='#000';ctx.beginPath();ctx.ellipse(0,2,43,9,0,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+ const bob=Math.sin(frame*.13)*(p.y>=floor?2:0);
+
+ if(isPlayer) {
+  // 遼（JKスタイル）
+  rect(-22,-30+bob,14,28,'#ffffff'); rect(8,-30+bob,14,28,'#ffffff');
+  rect(-24,-8+bob,18,8,'#111827'); rect(6,-8+bob,18,8,'#111827');
+  rect(-26,-52+bob,52,24,flashing?'#fff':'#991b1b');
+  rect(-24,-52+bob,8,24,'#7f1d1d'); rect(0,-52+bob,8,24,'#7f1d1d');
+  rect(-24,-86+bob,48,35,flashing?'#fff':'#f8fafc');
+  rect(-12,-86+bob,24,12,'#e11d48');
+  let reach=p.attack>0?(p.attackType==='kick'?25:40):0;
+  rect(12,-82+bob,16+reach,10,flashing?'#fff':'#f8fafc');
+  rect(26+reach,-84+bob,12,12,'#fde047');
+  rect(-28,-80+bob,14,10,flashing?'#fff':'#f8fafc');
+  rect(-22,-124+bob,44,14,flashing?'#fff':'#d97706');
+  rect(-26,-114+bob,10,32,flashing?'#fff':'#b45309');
+  rect(-18,-118+bob,36,32,flashing?'#fff':'#fde047');
+  rect(-10,-106+bob,5,5,'#1e1b4b'); rect(8,-106+bob,5,5,'#1e1b4b');
+ } else {
+  // 敵キャラ
+  if(label==='ぐーば') {
+   rect(-22,-48+bob,16,45,'#1e293b'); rect(6,-48+bob,16,45,'#1e293b');
+   rect(-25,-85+bob,50,40,flashing?'#fff':color);
+   rect(-18,-118+bob,36,32,flashing?'#fff':'#f3c7a8');
+   rect(-22,-122+bob,44,12,'#0f172a');
+   rect(-24,-110+bob,8,16,'#f59e0b'); rect(16,-110+bob,8,16,'#f59e0b');
+  } else if(label==='パキスラ') {
+   rect(-20,-48+bob,14,45,'#047857'); rect(6,-48+bob,14,45,'#047857');
+   rect(-24,-85+bob,48,40,flashing?'#fff':color);
+   rect(-20,-118+bob,40,32,flashing?'#fff':'#064e3b');
+   rect(-16,-110+bob,32,10,'#34d399');
+  } else {
+   rect(-26,-48+bob,20,45,'#312e81'); rect(6,-48+bob,20,45,'#312e81');
+   rect(-28,-88+bob,56,42,flashing?'#fff':color);
+   rect(-22,-122+bob,44,35,flashing?'#fff':'#1e1b4b');
+   rect(-14,-112+bob,8,8,'#ef4444'); rect(6,-112+bob,8,8,'#ef4444');
+  }
+  let reach=p.attack>0?35:0;
+  rect(14,-80+bob,16+reach,12,flashing?'#fff':color);
+  rect(28+reach,-83+bob,14,15,'#f5d4b7');
+ }
+ ctx.restore();
+ 
+ if(isPlayer) {
+  text('遼（マリコス）', x, y - 137, 16, '#ff80bc');
+ } else {
+  text(label, x, y - 137, 17, '#fff');
+ }
+}
+
+function checkHit(p, target, damage, range) {
+ if (p.attack > 0 && !p.hasHit) {
+  let inX = (p.face === 1 && target.x > p.x && target.x < p.x + range) ||
+            (p.face === -1 && target.x < p.x && target.x > p.x - range);
+  let inY = Math.abs(p.y - target.y) < 50;
+
+  if (inX && inY) {
+   target.hp = Math.max(0, target.hp - damage);
+   target.hitFlash = 10;
+   target.x += p.face * 25;
+   p.hasHit = true;
+  }
+ }
+}
+
+function update(){
+ if(!running||over||waitingNext)return;frame++;tick++;
+ if(tick%60===0){timer=Math.max(0,timer-1);if(timer===0){player.hp=Math.max(0,player.hp-8);timer=99}}
+
+ // プレイヤー操作
+ const left=keys.ArrowLeft,right=keys.ArrowRight,jump=keys.ArrowUp;
+ if(left){player.x-=5.5;player.face=-1}if(right){player.x+=5.5;player.face=1}
+ player.x=Math.max(45,Math.min(915,player.x));
+ if(jump&&player.y>=floor){player.vy=-13}
+ if(player.vy!==0||player.y<floor){player.y+=player.vy;player.vy+=.65;if(player.y>=floor){player.y=floor;player.vy=0}}
+
+ // プレイヤー攻撃処理
+ if(player.cool>0)player.cool--;
+ if(player.attack>0){player.attack--;}else{player.hasHit=false;}
+ if(player.hitFlash>0)player.hitFlash--;
+
+ if((keys.z||keys.x)&&player.cool===0&&player.attack===0){
+  player.attack=12;
+  player.attackType=keys.x?'kick':'punch';
+  player.cool=18;
+  player.hasHit=false;
+ }
+
+ checkHit(player, enemy, player.attackType==='kick'?45:30, player.attackType==='kick'?125:100);
+
+ // 敵のAI（近寄って積極的に攻撃してくる仕様）
+ if(enemy.hp>0){
+  enemy.face=enemy.x>player.x?-1:1;
+  let dist=Math.abs(enemy.x-player.x);
+  
+  // 敵の接近移動
+  if(dist>80) {
+   enemy.x += enemy.face * 3.5;
+  } else {
+   // 間合いに入るとパンチ/キック攻撃発動
+   if(enemy.cool===0 && enemy.attack===0){
+    enemy.attack=12;
+    enemy.cool=20;
+    enemy.hasHit=false;
+   }
+  }
+
+  if(enemy.cool>0)enemy.cool--;
+  if(enemy.attack>0){enemy.attack--;}else{enemy.hasHit=false;}
+  if(enemy.hitFlash>0)enemy.hitFlash--;
+
+  // 敵からプレイヤーへの攻撃ヒット判定
+  checkHit(enemy, player, 15, 110);
+  enemy.x=Math.max(45,Math.min(915,enemy.x));
+ } else {
+  // ★ 敵のHPが0になったら即座に「次へ」画面を表示して進行を止める
+  waitingNext=true;
+  const msgBox = document.getElementById('message-box');
+  const nextBtn = document.getElementById('next-btn');
+  msgBox.style.display = 'block';
+  
+  if(enemyIndex < names.length - 1) {
+   document.getElementById('message').textContent = 'K.O.!';
+   nextBtn.style.display = 'inline-block';
+  } else {
+   finish(true);
+  }
+ }
+
+ if(player.hp<=0){finish(false)}
+ updateHud();
+}
+
+// 「次へ」ボタンクリック時の発動処理
+document.getElementById('next-btn').addEventListener('click', (e) => {
+ e.preventDefault();
+ enemyIndex++;
+ if(enemyIndex < names.length) {
+  document.getElementById('message-box').style.display = 'none';
+  newEnemy();
+  player.x = 190;
+  timer = 99;
+  waitingNext = false;
+ }
+});
+
+function updateHud(){
+ document.getElementById('hp1').style.width=player.hp+'%';
+ document.getElementById('hp2').style.width=(enemy?enemy.hp:0)+'%';
+ document.getElementById('timer').textContent=timer;
+ document.getElementById('round').textContent=`ROUND ${Math.min(enemyIndex+1,3)}`;
+}
+
+function finish(win){
+ over=true;
+ document.getElementById('message-box').style.display='block';
+ document.getElementById('next-btn').style.display='none';
+ document.getElementById('message').textContent=win?'STAGE CLEAR!':'GAME OVER';
+ setTimeout(()=>{
+  if(over){
+   document.getElementById('start').style.display='flex';
+   document.querySelector('#start h1').innerHTML=win?'STAGE CLEAR!':'GAME OVER';
+   document.querySelector('#start p').innerHTML=win?'遼、3人抜き完全達成！<br>もう一度プレイできます。':'惜しい！もう一度挑戦しましょう。';
+   document.getElementById('go').textContent='もう一度';
+  }
+ },1200);
+}
+
+function draw(){
+ bg();
+ fighter(player,true,'遼','#ff8fca');
+ if(enemy && enemy.hp>0) fighter(enemy,false,names[Math.min(enemyIndex,2)],colors[Math.min(enemyIndex,2)]);
+ 
+ // プレイヤー攻撃エフェクト
+ if(player.attack>0){
+  ctx.globalAlpha=.8;
+  ctx.strokeStyle='#fff36b';
+  ctx.lineWidth=5;
+  ctx.beginPath();
+  ctx.arc(player.x+player.face*50,player.y-65,30,Math.PI*-.4,Math.PI*.4);
+  ctx.stroke();
+  ctx.globalAlpha=1;
+ }
+
+ // 敵の攻撃エフェクト
+ if(enemy && enemy.attack>0){
+  ctx.globalAlpha=.8;
+  ctx.strokeStyle='#ff5ea8';
+  ctx.lineWidth=5;
+  ctx.beginPath();
+  ctx.arc(enemy.x+enemy.face*50,enemy.y-65,28,Math.PI*-.4,Math.PI*.4);
+  ctx.stroke();
+  ctx.globalAlpha=1;
+ }
+}
+
+function loop(){
+ update();
+ draw();
+ requestAnimationFrame(loop);
+}
+
+document.getElementById('go').addEventListener('click',()=>{
+ document.getElementById('start').style.display='none';
+ document.getElementById('message-box').style.display='none';
+ document.querySelector('#start h1').innerHTML='遼<br>ファイトナイト';
+ document.querySelector('#start p').innerHTML='ネオン街の決戦！<br>ぐーば → パキスラ → テオ<br>3人を倒して完全制覇を目指そう！<br><small>PC：矢印キーで移動・ジャンプ、Zでパンチ、Xでキック<br>スマホ：画面下のボタンで操作</small>';
+ document.getElementById('go').textContent='FIGHT！';
+ reset();
+ running=true;
+});
+
+window.addEventListener('keydown',e=>{
+ if(['ArrowLeft','ArrowRight','ArrowUp',' '].includes(e.key))e.preventDefault();
+ keys[e.key.length===1?e.key.toLowerCase():e.key]=true;
+});
+window.addEventListener('keyup',e=>keys[e.key.length===1?e.key.toLowerCase():e.key]=false);
+
+document.querySelectorAll('.control').forEach(b=>{
+ const k=b.dataset.key;
+ const down=e=>{e.preventDefault();keys[k]=true;b.classList.add('active')};
+ const up=e=>{e.preventDefault();keys[k]=false;b.classList.remove('active')};
+ b.addEventListener('pointerdown',down);
+ b.addEventListener('pointerup',up);
+ b.addEventListener('pointercancel',up);
+ b.addEventListener('pointerleave',up);
+});
+
+newEnemy();
+loop();
+})();
+</script>
+</body>
+</html>
